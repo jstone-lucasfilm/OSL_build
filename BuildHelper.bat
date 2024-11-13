@@ -1,11 +1,13 @@
-@echo on
+@echo off
 
-if %1.==. goto End
+if exist %1\ goto End
+
 set root=%1
+echo *** Building %root%
 
 set /p gitArgs=<"%root%.git"
 if not exist %root% (
-	git clone --depth 1 %gitArgs% %root%
+	git clone --depth 1 -c advice.detachedHead=false %gitArgs% %root%
 )
 
 set cmakeArgs=
@@ -19,27 +21,18 @@ if exist "%root%.invokeDir" set /p invokeDir=<"%root%.invokeDir"
 
 pushd %root%
 
-if exist ../%root%.patch patch -p0 -i ../%root%.patch -N
+set buildDir="build"
 
-set cmBuild=cmBuild
+if not exist %buildDir% mkdir %buildDir%
 
-if not exist %cmBuild% mkdir %cmBuild%
+pushd %buildDir%
 
-pushd %cmBuild%
-
-cmake -G %compiler% -A %arch% %invokeDir%  -DCMAKE_DEBUG_POSTFIX=d -DCMAKE_INSTALL_PREFIX=%module% -DCMAKE_PREFIX_PATH=%module% %cmakeArgs%
-if NOT ["%errorlevel%"]==["0"] pause
-
-if not exist ../../%root%.releaseOnly cmake --build . --target install -j 8 --config debug
+cmake -G %compiler% -A %arch% %invokeDir% -DCMAKE_DEBUG_POSTFIX=d -DCMAKE_INSTALL_PREFIX=%fullInstallDir% -DCMAKE_PREFIX_PATH=%fullInstallDir% -DLLVM_ROOT=%fullInstallDir% %cmakeArgs%
 cmake --build . --target install -j 8 --config release
 
 %postBuild%
 
 popd
-
 popd
-
-goto End
-
 
 :End
